@@ -1,16 +1,19 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, RefreshCw, Upload, Sun, Moon } from 'lucide-react';
+import { Plus, RefreshCw, Upload, Download, Sun, Moon, Image } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CardForm from './CardForm';
 import { Card } from '../types';
+import AnimatedTitle from './AnimatedTitle';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface HeaderProps {
   onAddCard: (card: Partial<Card>) => void;
   onReset: () => void;
   onImport: (data: any) => void;
+  onExport: () => void;
   isDarkMode: boolean;
   toggleDarkMode: () => void;
 }
@@ -18,20 +21,42 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ 
   onAddCard, 
   onReset, 
-  onImport, 
+  onImport,
+  onExport,
   isDarkMode, 
   toggleDarkMode 
 }) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const handleImportClick = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.json, image/*';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
+      if (!file) return;
+
+      if (file.type.startsWith('image/')) {
+        // Handle image import
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const imageData = event.target?.result as string;
+          onAddCard({
+            title: file.name.split('.')[0] || 'Imported Image',
+            content: 'Imported from image',
+            type: 'risk',
+            image: imageData
+          });
+          toast({
+            title: "Image imported",
+            description: "Your image has been imported as a new card",
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Handle JSON import
         const reader = new FileReader();
         reader.onload = (event) => {
           try {
@@ -66,22 +91,26 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="py-4 px-6 flex justify-between items-center border-b">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-2xl font-bold">FGResearch Poker Cards</h1>
+    <header className="py-4 px-4 md:px-6 flex flex-col md:flex-row justify-between items-center border-b sticky top-0 bg-background z-10 backdrop-blur-sm bg-opacity-90">
+      <div className="flex items-center mb-3 md:mb-0">
+        <AnimatedTitle text="FGResearch Poker Cards" />
       </div>
       
-      <div className="flex items-center space-x-2">
-        <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
-          <Plus size={16} className="mr-1" /> Add Card
+      <div className="flex flex-wrap items-center gap-2 justify-center md:justify-end">
+        <Button onClick={() => setIsAddDialogOpen(true)} size={isMobile ? "sm" : "default"}>
+          <Plus size={16} className="mr-1" /> {isMobile ? "" : "Add Card"}
         </Button>
         
-        <Button variant="outline" size="sm" onClick={handleImportClick}>
-          <Upload size={16} className="mr-1" /> Import
+        <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={handleImportClick}>
+          <Upload size={16} className="mr-1" /> {isMobile ? "" : "Import"}
         </Button>
         
-        <Button variant="outline" size="sm" onClick={handleResetClick}>
-          <RefreshCw size={16} className="mr-1" /> Reset
+        <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={onExport}>
+          <Download size={16} className="mr-1" /> {isMobile ? "" : "Export"}
+        </Button>
+        
+        <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={handleResetClick}>
+          <RefreshCw size={16} className="mr-1" /> {isMobile ? "" : "Reset"}
         </Button>
         
         <Button variant="ghost" size="icon" onClick={toggleDarkMode}>

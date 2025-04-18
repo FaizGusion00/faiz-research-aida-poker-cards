@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import CardItem from './CardItem';
 import CardForm from './CardForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, BoardState, AidaStage } from '../types';
 import { getStageColor } from '../utils/colors';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CardBoardProps {
   boardState: BoardState;
@@ -14,6 +15,7 @@ interface CardBoardProps {
 
 const CardBoard: React.FC<CardBoardProps> = ({ boardState, onBoardChange }) => {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const isMobile = useIsMobile();
   
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -109,8 +111,10 @@ const CardBoard: React.FC<CardBoardProps> = ({ boardState, onBoardChange }) => {
       ...boardState.cards,
       [cardData.id]: {
         ...boardState.cards[cardData.id],
+        title: cardData.title || boardState.cards[cardData.id].title,
         content: cardData.content || boardState.cards[cardData.id].content,
-        type: cardData.type || boardState.cards[cardData.id].type
+        type: cardData.type || boardState.cards[cardData.id].type,
+        image: cardData.image !== undefined ? cardData.image : boardState.cards[cardData.id].image
       }
     };
     
@@ -125,52 +129,99 @@ const CardBoard: React.FC<CardBoardProps> = ({ boardState, onBoardChange }) => {
   };
   
   return (
-    <div className="p-4">
+    <div className="p-2 md:p-4">
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-5">
-          {/* AIDA columns */}
-          {Object.values(boardState.columns).map((column) => (
-            <div 
-              key={column.id} 
-              className={`p-4 rounded-lg shadow-sm ${
-                column.id !== 'unassigned' ? `aida-section-${column.id}` : 'bg-gray-100 dark:bg-gray-800'
-              }`}
-            >
-              <h2 className="text-lg font-semibold mb-3 capitalize">{column.title}</h2>
-              <Droppable droppableId={column.id}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`min-h-[200px] p-2 rounded-md transition-colors ${
-                      snapshot.isDraggingOver ? 'bg-primary bg-opacity-5' : ''
-                    }`}
-                  >
-                    {column.cardIds.map((cardId, index) => (
-                      <Draggable key={cardId} draggableId={cardId} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={snapshot.isDragging ? 'dragging' : ''}
-                          >
-                            <CardItem
-                              card={boardState.cards[cardId]}
-                              onEdit={handleEditCard}
-                              onDelete={handleDeleteCard}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
-        </div>
+        {isMobile ? (
+          // Mobile layout: vertical columns
+          <div className="flex flex-col space-y-6">
+            {Object.values(boardState.columns).map((column) => (
+              <div 
+                key={column.id} 
+                className={`p-4 rounded-lg shadow-sm ${
+                  column.id !== 'unassigned' ? `aida-section-${column.id}` : 'bg-gray-100 dark:bg-gray-800'
+                }`}
+              >
+                <h2 className="text-lg font-semibold mb-3 capitalize">{column.title}</h2>
+                <Droppable droppableId={column.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`min-h-[150px] p-2 rounded-md transition-colors ${
+                        snapshot.isDraggingOver ? 'bg-primary bg-opacity-5' : ''
+                      }`}
+                    >
+                      {column.cardIds.map((cardId, index) => (
+                        <Draggable key={cardId} draggableId={cardId} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={snapshot.isDragging ? 'dragging' : ''}
+                            >
+                              <CardItem
+                                card={boardState.cards[cardId]}
+                                onEdit={handleEditCard}
+                                onDelete={handleDeleteCard}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            ))}
+          </div>
+        ) : (
+          // Desktop layout: horizontal columns
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-5 h-[calc(100vh-150px)]">
+            {Object.values(boardState.columns).map((column) => (
+              <div 
+                key={column.id} 
+                className={`p-4 rounded-lg shadow-sm h-full flex flex-col ${
+                  column.id !== 'unassigned' ? `aida-section-${column.id}` : 'bg-gray-100 dark:bg-gray-800'
+                }`}
+              >
+                <h2 className="text-lg font-semibold mb-3 capitalize">{column.title}</h2>
+                <Droppable droppableId={column.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`flex-1 p-2 rounded-md transition-colors overflow-y-auto ${
+                        snapshot.isDraggingOver ? 'bg-primary bg-opacity-5' : ''
+                      }`}
+                    >
+                      {column.cardIds.map((cardId, index) => (
+                        <Draggable key={cardId} draggableId={cardId} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className={snapshot.isDragging ? 'dragging' : ''}
+                            >
+                              <CardItem
+                                card={boardState.cards[cardId]}
+                                onEdit={handleEditCard}
+                                onDelete={handleDeleteCard}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            ))}
+          </div>
+        )}
       </DragDropContext>
       
       {/* Edit Card Dialog */}
